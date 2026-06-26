@@ -1,29 +1,147 @@
-const { User } = require('../models');
+'use strict';
+
+const { Usuario, Rol } = require('../models');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// POST /api/auth/register
 exports.register = async (req, res, next) => {
   try {
-    const { nombre, email, password, rol } = req.body;
-    const newUser = await User.create({ nombre, email, password, rol });
-    res.status(201).json({ success: true, message: 'Usuario creado', user: { id: newUser.id, email: newUser.email } });
+    const { nombre, apellidos, email, password, rol_id, telefono } = req.body;
+
+    if (!nombre || !email || !password || !rol_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Los campos nombre, email, password y rol_id son obligatorios'
+      });
+    }
+
+    const existe = await Usuario.findOne({ where: { email } });
+    if (existe) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ya existe un usuario registrado con ese email'
+      });
+    }
+
+    const nuevoUsuario = await Usuario.create({
+      nombre,
+      apellidos: apellidos || null,
+      email,
+      password,
+      rol_id,
+      telefono: telefono || null
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuario creado correctamente',
+      data: {
+        id:    nuevoUsuario.id,
+        email: nuevoUsuario.email,
+        nombre: nuevoUsuario.nombre
+      }
+    });
   } catch (error) {
     next(error);
   }
 };
 
+// POST /api/auth/login
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ where: { email } });
-    
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email y password son obligatorios'
+      });
     }
 
-    const token = jwt.sign({ id: user.id, rol: user.rol }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ success: true, token, user: { nombre: user.nombre, rol: user.rol } });
+    const usuario = await Usuario.findOne({
+      where: { email, activo: 1 },
+      include: [{
+        model: Rol,
+        as: 'rol',
+        attributes: ['id', 'nombre']
+      }]
+    });
+
+    if (!usuario) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    const passwordValido = await bcrypt.compare(password, usuario.password);
+    if (!passwordValido) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id:     usuario.id,
+        rol_id: usuario.rol_id,
+        rol:    usuario.rol.nombre
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Inicio de sesión exitoso',
+      token,
+      data: {
+        id:       usuario.id,
+        nombre:   usuario.nombre,
+        apellidos: usuario.apellidos,
+        email:    usuario.email,
+        rol:      usuario.rol.nombre
+      }
+    });
   } catch (error) {
     next(error);
   }
+};
+
+// GET /api/auth/me
+exports.me = async (req, res, next) => {
+  try {
+    const usuario = await Usuario.findByPk(req.usuario.id, {
+      attributes: { exclude: ['password'] },
+      include: [{
+        model: Rol,
+        as: 'rol',
+        attributes: ['id', 'nombre']
+      }]
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: usuario
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/auth/logout
+exports.logout = async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Sesión cerrada correctamente'
+  });
 };

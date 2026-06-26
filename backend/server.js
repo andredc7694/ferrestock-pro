@@ -1,33 +1,35 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const sequelize = require('./config/db');
-const routes = require('./routes'); // Importamos nuestras rutas
-const errorHandler = require('./middlewares/errorHandler'); // Importamos el manejador de errores
+
+const db = require('./models');
+const apiRoutes = require('./routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Usamos las rutas
-app.use(routes);
+app.use('/api', apiRoutes);
 
-// Ruta no encontrada (404)
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Ruta no encontrada' });
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Error interno del servidor'
+  });
 });
 
-// Middleware de errores (siempre al final)
-app.use(errorHandler);
-
-app.listen(PORT, async () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
-  try {
-    await sequelize.authenticate();
-    console.log('✅ Conexión a la base de datos establecida.');
-  } catch (error) {
-    console.error('❌ Error en BD:', error.message);
-  }
-});
+// Solución definitiva: Llamado a authenticate con logging false
+db.sequelize.authenticate({ logging: false })
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log('Conexión a la base de datos establecida.');
+      console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('No se pudo conectar a la base de datos:', err);
+  });

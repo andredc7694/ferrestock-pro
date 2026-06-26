@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const healthRoutes = require('./health');
-const authRoutes = require('./auth'); // <--- Importa esto
 
-router.use('/api', healthRoutes);
-router.use('/api/auth', authRoutes); // <--- Usa esto
+const authRoutes = require('./auth');
+const productoRoutes = require('./productoRoutes'); // Conexión para el módulo de productos
+
+// Acoplamiento de submódulos de la API
+router.use('/auth', authRoutes);
+router.use('/productos', productoRoutes);
 
 module.exports = router;
