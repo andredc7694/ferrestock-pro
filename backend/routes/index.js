@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-const authRoutes = require('./auth');
+const authRoutes = require('./auth'); // Conexión para el módulo de autenticación
 const productoRoutes = require('./productoRoutes'); // Conexión para el módulo de productos
 
 // Acoplamiento de submódulos de la API

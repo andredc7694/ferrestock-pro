@@ -1,8 +1,23 @@
 const { Producto, Inventario, sequelize } = require('../models');
 const { generarCodigoProducto } = require('../utils/generadores');
+const { Op } = require('sequelize');
 
-exports.obtenerTodos = async () => {
-  return await Producto.findAll({
+exports.obtenerTodos = async ({ page, limit, search, categoria_id }) => {
+  const offset = (page - 1) * limit;
+  const where = {};
+
+  if (search) {
+    where[Op.or] = [
+      { nombre: { [Op.like]: `%${search}%` } },
+      { codigo: { [Op.like]: `%${search}%` } }
+    ];
+  }
+  if (categoria_id) where.categoria_id = categoria_id;
+
+  return await Producto.findAndCountAll({
+    where,
+    limit: parseInt(limit),
+    offset: parseInt(offset),
     include: ['categoria', 'unidad_medida', 'inventario']
   });
 };

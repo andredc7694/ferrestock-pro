@@ -9,4 +9,10 @@ router.get('/', authMiddleware, prodController.listarProductos);
 // POST /api/productos
 router.post('/', authMiddleware, prodController.crearProducto);
 
+// PUT /api/productos/:id
+router.put('/:id', authMiddleware, prodController.actualizarProducto);
+
+// DELETE /api/productos/:id
+router.delete('/:id', authMiddleware, prodController.eliminarProducto);
+
 module.exports = router;
